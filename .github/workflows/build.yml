@@ -1,1 +1,53 @@
+name: Build APK
 
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find project root (settings.gradle.kts)
+        id: root
+        run: |
+          echo "--- repo files ---"
+          find . -maxdepth 3 -not -path './.git/*' | head -60
+          S=$(find . -maxdepth 3 -name 'settings.gradle*' -not -path './.git/*' | head -1)
+          if [ -z "$S" ]; then
+            echo "ERROR: settings.gradle.kts not found. Upload ALL files from the zip (inside the folder) to the repo root."
+            exit 1
+          fi
+          DIR=$(dirname "$S")
+          echo "Project root: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          if [ ! -f "$DIR/app/sajid.keystore" ]; then
+            echo "ERROR: app/sajid.keystore missing in $DIR/app"
+            exit 1
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        working-directory: ${{ steps.root.outputs.dir }}
+        run: gradle assembleDebug --stacktrace --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SajidBrowser-APK
+          path: ${{ steps.root.outputs.dir }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
