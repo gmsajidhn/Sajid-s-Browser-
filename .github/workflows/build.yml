@@ -12,6 +12,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Unzip project if uploaded as zip
+        run: |
+          if ! find . -maxdepth 3 -name 'settings.gradle*' -not -path './.git/*' | grep -q .; then
+            Z=$(find . -maxdepth 2 -name '*.zip' -not -path './.git/*' | head -1)
+            if [ -n "$Z" ]; then
+              echo "Unzipping $Z"
+              mkdir -p _project
+              unzip -q -o "$Z" -d _project
+            fi
+          fi
+
       - name: Find project root (settings.gradle.kts)
         id: root
         run: |
@@ -19,7 +30,7 @@ jobs:
           find . -maxdepth 3 -not -path './.git/*' | head -60
           S=$(find . -maxdepth 3 -name 'settings.gradle*' -not -path './.git/*' | head -1)
           if [ -z "$S" ]; then
-            echo "ERROR: settings.gradle.kts not found. Upload ALL files from the zip (inside the folder) to the repo root."
+            echo "ERROR: settings.gradle.kts not found."
             exit 1
           fi
           DIR=$(dirname "$S")
